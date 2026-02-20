@@ -1,65 +1,148 @@
 # ⏱ TimeTracker
 
-A lightweight, fully offline desktop time-tracking application for developers and freelancers who work across multiple projects.
+Ứng dụng desktop theo dõi thời gian làm việc theo từng dự án. Chạy hoàn toàn offline, không cần internet, dữ liệu lưu trên máy của bạn.
 
 ---
 
-## Technology Choice: Python + PyQt6 + SQLite
+## Yêu cầu hệ thống
 
-### Why not Electron or Tauri?
-
-| Criterion          | Electron         | Tauri            | **Python + PyQt6** |
-|--------------------|------------------|------------------|--------------------|
-| Startup time       | 2–4 seconds      | ~1 second        | **~0.5 seconds**   |
-| RAM at idle        | ~180 MB          | ~30 MB           | **~25 MB**         |
-| Install complexity | Node + npm       | Rust + Node      | **pip install**    |
-| Single executable  | Moderate         | Good             | **pyinstaller**    |
-| Native feel        | Chrome shell     | WebView          | **True native**    |
-| SQLite support     | node-sqlite3     | rusqlite         | **stdlib**         |
-
-**Python + PyQt6 wins** for a local utility: zero web stack, SQLite is in the standard library, and the executable is small enough to distribute as a single file.
+- Python 3.10 trở lên
+- Windows / macOS / Linux
 
 ---
 
-## System Architecture
+## Cài đặt & Chạy
+
+### Bước 1 — Cài thư viện
+
+```bash
+pip install PyQt6
+```
+
+### Bước 2 — Chạy ứng dụng
+
+```bash
+python main.py
+```
+
+> Chạy lệnh này **trong thư mục chứa các file `.py`**.
+
+---
+
+## Cấu trúc thư mục
+
+Tất cả file nằm **cùng một cấp**, không có subfolder:
 
 ```
-┌─────────────────────────────────────────────────────┐
-│                   main.py (entry point)              │
-│         QApplication → MainWindow                    │
-└─────────────────┬───────────────────────────────────┘
-                  │
-         ┌────────▼────────┐
-         │   MainWindow    │  Tab bar + status bar
-         └────┬────┬───┬───┘
-              │    │   │  
-     ┌────────▼┐ ┌─▼──▼─┐ ┌──────────┐ ┌──────────┐
-     │TimerTab │ │Dash  │ │HistoryTab│ │ProjectsTab│
-     │(live    │ │board │ │(sessions │ │(CRUD +   │
-     │ clock)  │ │Tab   │ │ filter)  │ │ colors)  │
-     └────┬────┘ └──────┘ └──────────┘ └──────────┘
-          │
-          │  calls
-          ▼
-┌─────────────────────────────────────────────────────┐
-│              core/tracker.py  (TimeTracker)          │
-│   Timer state machine + business logic               │
-│   - start_timer / stop_timer / discard_timer         │
-│   - elapsed_seconds() (live)                         │
-│   - get_dashboard() / get_history() / export_csv()   │
-└─────────────────┬───────────────────────────────────┘
-                  │  calls
-                  ▼
-┌─────────────────────────────────────────────────────┐
-│              core/database.py  (SQLite)              │
-│   All schema creation + raw SQL queries              │
-│   - init_db() / create_project() / start_session()  │
-│   - get_active_session() (crash recovery)            │
-│   - get_dashboard_stats() / get_sessions()           │
-└─────────────────────────────────────────────────────┘
-                  │  persists to
-                  ▼
-         ~/.timetracker/timetracker.db
+your-folder/
+├── main.py            ← Điểm khởi động, chạy file này
+├── main_window.py     ← Cửa sổ chính, tab bar, status bar
+├── database.py        ← Toàn bộ SQLite schema và truy vấn
+├── tracker.py         ← Logic đồng hồ bấm giờ, quản lý session
+├── style.py           ← Màu sắc, font, stylesheet toàn app
+├── widgets.py         ← Các widget tái sử dụng (StatBox, ProjectListItem…)
+├── tab_timer.py       ← Tab Timer: đồng hồ trực tiếp + danh sách project
+├── tab_dashboard.py   ← Tab Dashboard: thống kê theo project
+├── tab_history.py     ← Tab History: lịch sử session + xuất CSV
+└── tab_projects.py    ← Tab Projects: quản lý project (thêm/sửa/xóa)
+```
+
+---
+
+## Dữ liệu được lưu ở đâu?
+
+Dữ liệu lưu tự động vào file SQLite trên máy bạn:
+
+| Hệ điều hành | Đường dẫn |
+|---|---|
+| Windows | `C:\Users\<tên>\\.timetracker\timetracker.db` |
+| macOS / Linux | `~/.timetracker/timetracker.db` |
+
+- Dữ liệu **giữ nguyên sau khi tắt máy hoặc khởi động lại**
+- Để **backup**, chỉ cần copy file `timetracker.db`
+- Để **xóa toàn bộ dữ liệu**, xóa file đó đi
+
+---
+
+## Cách sử dụng
+
+### Tạo project
+1. Mở tab **Timer** hoặc **Projects**
+2. Bấm **+ New Project**
+3. Nhập tên → OK
+
+### Bắt đầu bấm giờ
+- Trong tab **Timer**, hover chuột vào tên project → bấm **▶**
+- Đồng hồ lớn bắt đầu chạy, có chấm xanh nhấp nháy
+
+### Dừng timer
+- Bấm nút **Stop Timer** ở panel trên cùng
+
+### Hôm sau tiếp tục
+- Bấm **▶** cho cùng project đó — thời gian tự động cộng dồn, không bị reset
+
+### Chỉ một timer chạy tại một thời điểm
+- Nếu bấm start project khác trong khi đang chạy → timer cũ tự động dừng và lưu lại
+
+---
+
+## Các tab
+
+### Timer
+- Đồng hồ đếm thời gian thực (cập nhật mỗi giây)
+- Danh sách tất cả project kèm tổng thời gian
+- Hover vào project để thấy nút ▶ Rename ✕
+
+### Dashboard
+- Tổng thời gian toàn bộ: **Hôm nay / Tuần này / Tháng này / Tất cả**
+- Bảng chi tiết theo từng project
+- Tự động cập nhật mỗi giây khi có timer đang chạy
+
+### History
+- Toàn bộ lịch sử session theo thứ tự mới nhất
+- Lọc theo **project** và **khoảng ngày**
+- Quick filter: Today / 7 days / 30 days / All
+- Xuất ra file **CSV** để dùng ngoài app
+
+### Projects
+- Xem danh sách project kèm tổng thời gian
+- **Đổi màu** project: bấm vào ô tròn màu
+- **Rename** / **Delete** trực tiếp
+- Project bị xóa là xóa mềm — lịch sử session vẫn còn trong History
+
+---
+
+## Tự phục hồi khi tắt máy đột ngột
+
+Nếu bạn tắt máy hoặc app bị crash **trong khi timer đang chạy**:
+
+- Lần mở app tiếp theo sẽ hiện thông báo **"Session Recovered"**
+- Timer tự động tiếp tục tính từ lúc bắt đầu ban đầu
+- Bấm **Stop Timer** bình thường để lưu session
+
+---
+
+## Xuất dữ liệu CSV
+
+1. Vào tab **History**
+2. Chọn project và khoảng ngày muốn xuất (hoặc để All)
+3. Bấm **↓ Export CSV**
+4. Chọn nơi lưu file
+
+File CSV có các cột: `Session ID, Project, Start Time, End Time, Duration (s), Duration (HH:MM:SS), Note`
+
+---
+
+## Đổi giao diện / màu sắc
+
+Mở file `style.py` và chỉnh các biến ở đầu file:
+
+```python
+ACCENT     = "#4A9EFF"   # Màu chủ đạo (xanh dương)
+ACCENT_HOT = "#FF5C5C"   # Màu Stop / xóa (đỏ)
+ACCENT_OK  = "#3DD68C"   # Màu đang chạy (xanh lá)
+BG_DARK    = "#0F1117"   # Nền chính
+BG_CARD    = "#1A1D27"   # Nền card/panel
 ```
 
 ---
@@ -67,223 +150,61 @@ A lightweight, fully offline desktop time-tracking application for developers an
 ## Database Schema
 
 ```sql
--- Projects table
+-- Danh sách project
 CREATE TABLE projects (
-    id          INTEGER PRIMARY KEY AUTOINCREMENT,
-    name        TEXT    NOT NULL UNIQUE,
-    color       TEXT    NOT NULL DEFAULT '#4A9EFF',
-    created_at  TEXT    NOT NULL DEFAULT (datetime('now')),
-    archived    INTEGER NOT NULL DEFAULT 0   -- soft delete
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    name       TEXT    NOT NULL UNIQUE,
+    color      TEXT    NOT NULL DEFAULT '#4A9EFF',
+    created_at TEXT    NOT NULL DEFAULT (datetime('now')),
+    archived   INTEGER NOT NULL DEFAULT 0  -- xóa mềm
 );
 
--- Work sessions table
--- One row per contiguous work block (start→stop pair)
+-- Mỗi lần bấm Start→Stop là một session
 CREATE TABLE sessions (
-    id          INTEGER PRIMARY KEY AUTOINCREMENT,
-    project_id  INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
-    start_time  TEXT    NOT NULL,       -- ISO-8601 UTC
-    end_time    TEXT,                   -- NULL = currently running
-    duration    INTEGER NOT NULL DEFAULT 0,  -- seconds
-    note        TEXT
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    project_id INTEGER NOT NULL REFERENCES projects(id),
+    start_time TEXT    NOT NULL,       -- ISO-8601 UTC
+    end_time   TEXT,                   -- NULL = đang chạy
+    duration   INTEGER NOT NULL DEFAULT 0,  -- giây
+    note       TEXT
 );
 
--- App state key-value store (crash recovery)
+-- Lưu trạng thái app (dùng cho crash recovery)
 CREATE TABLE app_state (
     key   TEXT PRIMARY KEY,
     value TEXT
 );
-
--- Indices
-CREATE INDEX idx_sessions_project ON sessions(project_id);
-CREATE INDEX idx_sessions_start   ON sessions(start_time);
-```
-
-**Key design decisions:**
-
-- `end_time = NULL` marks an active session — used for crash recovery
-- `duration` is stored redundantly (computed at stop time) for fast aggregation
-- `archived = 1` for soft-deleted projects preserves history
-- `app_state` stores `active_session_id` / `active_project_id` — if the app crashes, these tell us exactly which session to resume
-
----
-
-## Project Structure
-
-```
-timetracker/
-├── main.py               # Entry point (QApplication + MainWindow)
-├── requirements.txt      # Python dependencies
-├── build.spec            # PyInstaller config for executable build
-│
-├── core/
-│   ├── __init__.py
-│   ├── database.py       # All SQLite schema + queries (no business logic)
-│   └── tracker.py        # TimeTracker service class (timer state machine)
-│
-└── ui/
-    ├── __init__.py
-    ├── style.py           # Design tokens + Qt stylesheet (theme here)
-    ├── widgets.py         # Reusable custom widgets (StatBox, ProjectListItem…)
-    ├── main_window.py     # MainWindow: tab bar + status bar
-    ├── tab_timer.py       # Tab 1: live clock + project list
-    ├── tab_dashboard.py   # Tab 2: per-project time aggregates
-    ├── tab_history.py     # Tab 3: filterable session log + CSV export
-    └── tab_projects.py    # Tab 4: project CRUD + color picker
 ```
 
 ---
 
-## Setup Instructions
-
-### Prerequisites
-
-- Python 3.10 or later  
-- pip
-
-### 1. Clone / download the project
-
-```bash
-git clone <repo-url>   # or download and unzip
-cd timetracker
-```
-
-### 2. Create a virtual environment (recommended)
-
-```bash
-python3 -m venv .venv
-
-# macOS / Linux
-source .venv/bin/activate
-
-# Windows
-.venv\Scripts\activate
-```
-
-### 3. Install dependencies
-
-```bash
-pip install -r requirements.txt
-```
-
-### 4. Run the app
-
-```bash
-python main.py
-```
-
-Data is stored at `~/.timetracker/timetracker.db` (created automatically on first run).
-
----
-
-## How to Use
-
-### Creating a project
-1. Go to the **Timer** tab
-2. Click **+ New Project** in the top-right of the project list
-3. Enter a name and press OK
-
-### Starting / stopping a timer
-- Hover over a project row → click the **▶** button to start its timer
-- The big clock starts counting in the top panel
-- Click **Stop Timer** to stop and save the session
-
-### Resuming work
-Simply start the timer for the same project the next day — time accumulates automatically.
-
-### Viewing stats
-- **Dashboard** tab: today / this week / this month / all-time per project
-- **History** tab: every session, filterable by project and date range
-
-### Exporting data
-History tab → click **↓ Export CSV** → choose a save location
-
-### Crash recovery
-If the app closes while a timer is running (crash or force-quit), the next launch will automatically resume the session and show a notification.
-
----
-
-## Building a Standalone Executable
-
-### Install PyInstaller
+## Build thành file .exe (Windows)
 
 ```bash
 pip install pyinstaller
+pyinstaller --onefile --windowed --name TimeTracker main.py
 ```
 
-### Build
-
-```bash
-pyinstaller build.spec
-```
-
-The executable will be in `dist/TimeTracker` (Linux/macOS) or `dist/TimeTracker.exe` (Windows).
-
-### macOS App Bundle
-
-Running PyInstaller on macOS produces `dist/TimeTracker.app` — a proper `.app` bundle you can move to `/Applications`.
-
-### Windows
-
-The output is a single `.exe` with no installer required.
+File `.exe` sẽ xuất hiện trong thư mục `dist/`.
 
 ---
 
-## Configuration & Theming
+## Gỡ lỗi thường gặp
 
-All colors, fonts, and spacing are defined in `ui/style.py`:
+**Lỗi `No module named 'core'` hoặc `No module named 'ui'`**
+→ Bạn đang dùng bản code cũ có subfolder. Hãy dùng bản mới nhất — tất cả file nằm cùng một cấp.
 
-```python
-# Change the accent color across the entire app
-ACCENT = "#4A9EFF"
-
-# Add more project colors
-PROJECT_COLORS = ["#4A9EFF", "#3DD68C", ...]
-```
-
----
-
-## Future Improvement Suggestions
-
-### Near-term
-- **Idle detection**: Use `QTimer` + system idle APIs (`xprintidle` on Linux, `GetLastInputInfo` on Windows, `ioreg` on macOS) — prompt user to discard idle time after N minutes of inactivity
-- **System tray**: Keep app running in background, show running timer in tray icon
-- **Keyboard shortcuts**: `⌘R` to start/stop, `⌘N` for new project
-
-### Medium-term  
-- **Notes per session**: Add a text note field when stopping a timer
-- **Goals / targets**: Set a daily/weekly hour goal per project with progress bars
-- **Tags**: Tag sessions for cross-project reporting (e.g., "meetings", "deep work")
-- **Multiple CSV formats**: Week summary, invoice-ready, Toggl-compatible export
-
-### Long-term
-- **Charts**: Weekly bar charts using `pyqtgraph` or `matplotlib`
-- **Billing rates**: Attach hourly rates to projects, auto-calculate invoice amounts
-- **Sync (optional)**: Optional encrypted sync via Dropbox/iCloud file sharing
-- **Plugin API**: Let users write Python scripts that react to timer events (e.g., post to Slack)
-
----
-
-## Troubleshooting
-
-**App won't start on macOS ("unidentified developer")**  
+**Lỗi `No module named 'PyQt6'`**
 ```bash
-xattr -cr TimeTracker.app
+pip install PyQt6
 ```
 
-**PyQt6 install fails on Linux**  
+**App không khởi động trên Windows**
+→ Chạy trong Git Bash hoặc Command Prompt, đứng đúng thư mục chứa `main.py`:
 ```bash
-sudo apt install python3-pyqt6
-# or
-pip install PyQt6 --pre
+cd path\to\your-folder
+python main.py
 ```
 
-**Database location**  
-```
-~/.timetracker/timetracker.db
-```
-Back this file up to preserve all your time data.
-
-**Reset all data**  
-```bash
-rm ~/.timetracker/timetracker.db
-```
+**Muốn xem database bằng tay**
+→ Dùng [DB Browser for SQLite](https://sqlitebrowser.org/) mở file `~/.timetracker/timetracker.db`
