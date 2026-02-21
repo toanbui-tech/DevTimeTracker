@@ -1,0 +1,54 @@
+# ── Python ────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.pyc
+
+# ── Virtual environments ──────────────────────────────────────────
+.venv/
+venv/
+env/
+ENV/
+.env
+
+# ── PyInstaller build output ──────────────────────────────────────
+build/
+dist/
+*.spec
+
+# ── Database (user data — never commit this) ──────────────────────
+*.db
+*.sqlite
+*.sqlite3
+
+# ── Logs & temp ───────────────────────────────────────────────────
+*.log
+*.tmp
+*.temp
+
+# ── OS files ──────────────────────────────────────────────────────
+# Windows
+Thumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Linux
+*~
+
+# ── IDE / Editor ──────────────────────────────────────────────────
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# ── Distribution / packaging ──────────────────────────────────────
+*.egg-info/
+.eggs/
+wheels/
+pip-wheel-metadata/

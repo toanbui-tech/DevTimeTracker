@@ -1,16 +1,17 @@
 """
-main_window.py — Application window
-Owns the tab bar and wires together all tabs.
+main_window.py — Main window v2
+Two-panel layout: sidebar (left) + content area (right).
 """
 
 from PyQt6.QtWidgets import (
-    QMainWindow, QWidget, QVBoxLayout, QTabWidget,
-    QLabel, QHBoxLayout, QMessageBox
+    QMainWindow, QWidget, QHBoxLayout, QVBoxLayout,
+    QStackedWidget, QLabel, QMessageBox
 )
 from PyQt6.QtCore import Qt, QTimer
 from PyQt6.QtGui import QCloseEvent
 
-from style import APP_STYLE, BG_DARK, BORDER, TEXT_MUTED, ACCENT_OK
+from style import APP_STYLE, BG_BASE, BG_SIDEBAR, ACCENT_GREEN
+from sidebar import Sidebar
 from tab_timer import TimerTab
 from tab_dashboard import DashboardTab
 from tab_history import HistoryTab
@@ -23,8 +24,8 @@ class MainWindow(QMainWindow):
         super().__init__()
         self.tracker = tracker
         self.setWindowTitle("TimeTracker")
-        self.setMinimumSize(760, 600)
-        self.resize(900, 680)
+        self.setMinimumSize(900, 620)
+        self.resize(1080, 720)
         self.setStyleSheet(APP_STYLE)
         self._build_ui()
         self._check_recovery()
@@ -32,70 +33,55 @@ class MainWindow(QMainWindow):
     def _build_ui(self):
         central = QWidget()
         self.setCentralWidget(central)
-        root = QVBoxLayout(central)
+
+        root = QHBoxLayout(central)
         root.setContentsMargins(0, 0, 0, 0)
         root.setSpacing(0)
 
-        # Tabs
-        self._tabs = QTabWidget()
-        self._tabs.setTabPosition(QTabWidget.TabPosition.North)
-        self._tabs.setDocumentMode(True)
+        # ── Sidebar ────────────────────────────────────────────────────────────
+        self._sidebar = Sidebar(self.tracker)
+        self._sidebar.nav_changed.connect(self._on_nav)
+        root.addWidget(self._sidebar)
+
+        # ── Content stack ──────────────────────────────────────────────────────
+        self._stack = QStackedWidget()
+        self._stack.setStyleSheet(f"background: {BG_BASE};")
 
         self._timer_tab = TimerTab(self.tracker)
         self._dash_tab  = DashboardTab(self.tracker)
         self._hist_tab  = HistoryTab(self.tracker)
         self._proj_tab  = ProjectsTab(self.tracker)
 
-        self._tabs.addTab(self._timer_tab, "  Timer  ")
-        self._tabs.addTab(self._dash_tab,  "  Dashboard  ")
-        self._tabs.addTab(self._hist_tab,  "  History  ")
-        self._tabs.addTab(self._proj_tab,  "  Projects  ")
+        self._pages = {
+            "timer":     self._timer_tab,
+            "dashboard": self._dash_tab,
+            "history":   self._hist_tab,
+            "projects":  self._proj_tab,
+        }
 
+        for page in self._pages.values():
+            self._stack.addWidget(page)
+
+        # Wire data changes
         self._timer_tab.data_changed.connect(self._on_data_changed)
         self._proj_tab.projects_changed.connect(self._on_data_changed)
-        self._tabs.currentChanged.connect(self._on_tab_changed)
 
-        root.addWidget(self._tabs)
+        root.addWidget(self._stack, 1)
 
-        # Status bar
-        status = QWidget()
-        status.setFixedHeight(28)
-        status.setStyleSheet(f"background: {BG_DARK}; border-top: 1px solid {BORDER};")
-        slay = QHBoxLayout(status)
-        slay.setContentsMargins(16, 0, 16, 0)
-
-        self._status_left = QLabel("Ready")
-        self._status_left.setStyleSheet(f"color: {TEXT_MUTED}; font-size: 11px;")
-        slay.addWidget(self._status_left)
-        slay.addStretch()
-
-        self._status_right = QLabel("")
-        self._status_right.setStyleSheet(f"color: {TEXT_MUTED}; font-size: 11px; font-family: Consolas;")
-        slay.addWidget(self._status_right)
-
-        root.addWidget(status)
-
-        self._status_clock = QTimer(self)
-        self._status_clock.timeout.connect(self._update_status)
-        self._status_clock.start(1000)
-
-    def _update_status(self):
-        from datetime import datetime
-        self._status_right.setText(datetime.now().strftime("%a %b %d, %Y  %H:%M:%S"))
-        if self.tracker.is_running:
-            self._status_left.setText(f"\u25cf Recording  {fmt_seconds(self.tracker.elapsed_seconds())}")
-            self._status_left.setStyleSheet(f"color: {ACCENT_OK}; font-size: 11px;")
-        else:
-            self._status_left.setText("Ready")
-            self._status_left.setStyleSheet(f"color: {TEXT_MUTED}; font-size: 11px;")
-
-    def _on_tab_changed(self, index: int):
-        widget = self._tabs.widget(index)
-        if hasattr(widget, "refresh"):
-            widget.refresh()
+    def _on_nav(self, page: str):
+        widget = self._pages.get(page)
+        if widget:
+            self._stack.setCurrentWidget(widget)
+            if hasattr(widget, "refresh"):
+                widget.refresh()
 
     def _on_data_changed(self):
         self._timer_tab.refresh_projects()
+        # Refresh current page if it's dashboard/history/projects
+        current = self._stack.currentWidget()
+        if current in (self._dash_tab, self._hist_tab, self._proj_tab):
+            if hasattr(current, "refresh"):
+                current.refresh()
 
     def _check_recovery(self):
         if self.tracker.recovered:
@@ -113,8 +99,8 @@ class MainWindow(QMainWindow):
             msg.setWindowTitle("Timer Still Running")
             msg.setText(
                 "A timer is still running.\n\n"
-                "Close Anyway \u2192 timer resumes automatically next launch.\n"
-                "Stop && Close \u2192 save the current session now."
+                "Close Anyway \u2192 timer will auto-resume next launch.\n"
+                "Stop && Close \u2192 save the session now."
             )
             btn_close  = msg.addButton("Close Anyway",  QMessageBox.ButtonRole.DestructiveRole)
             btn_stop   = msg.addButton("Stop && Close", QMessageBox.ButtonRole.AcceptRole)

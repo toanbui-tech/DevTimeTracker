@@ -1,13 +1,12 @@
 #!/usr/bin/env python3
 """
-main.py — TimeTracker entry point
-Run with:  python main.py
+main.py — TimeTracker v2 entry point
+Run with: python main.py
 """
 
 import sys
 import os
 
-# Add the folder containing this file to Python's path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from PyQt6.QtWidgets import QApplication
@@ -21,7 +20,6 @@ def main():
     QApplication.setHighDpiScaleFactorRoundingPolicy(
         Qt.HighDpiScaleFactorRoundingPolicy.PassThrough
     )
-
     app = QApplication(sys.argv)
     app.setApplicationName("TimeTracker")
     app.setOrganizationName("TimeTracker")
