@@ -4,6 +4,15 @@ A professional, fully offline desktop time tracker for developers and freelancer
 
 ---
 
+## Download — Ready to Use (No Setup Required)
+
+Download the standalone executable here: [DevTimeTracker](https://drive.google.com/uc?export=download&id=1swhvPhjieJy2ZGEkRlqxRvJtXnwzE4mu)
+
+Just download and double-click to run.
+No Python installation needed.
+
+---
+
 ## Requirements
 
 - Python 3.10 or later
